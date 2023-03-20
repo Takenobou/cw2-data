@@ -1,5 +1,12 @@
 # cw2-data
 
+- [x] Task 1 (400147c3c034aefcc7761e9ba575bf3504e1de9c)
+- [x] Task 2 (c88978168e536e1c561e8a299f4e279a022c9022)
+- [x] Task 3 (c88978168e536e1c561e8a299f4e279a022c9022)
+- [x] Task 4 (735946c5033a9730a08bc5d2ceda9cb55fa70f7a)
+- [ ] Task 5
+- [ ] Task 6
+
 ## Part I (Guided) – Building up a recommender engine
 Your first task is to prepare the data and carry out data pre-processing and visualisation in
 order to make sense of the data. Namely, what is the distribution of the ratings; what is the
