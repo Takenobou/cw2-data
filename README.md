@@ -1,9 +1,9 @@
 # cw2-data
 
-- [x] Task 1 (400147c3c034aefcc7761e9ba575bf3504e1de9c)
-- [x] Task 2 (c88978168e536e1c561e8a299f4e279a022c9022)
-- [x] Task 3 (c88978168e536e1c561e8a299f4e279a022c9022)
-- [x] Task 4 (735946c5033a9730a08bc5d2ceda9cb55fa70f7a)
+- [x] Task 1
+- [x] Task 2 
+- [x] Task 3
+- [x] Task 4 
 - [ ] Task 5
 - [ ] Task 6
 
