@@ -3,21 +3,13 @@ import matplotlib.pyplot as plt
 from sklearn.feature_extraction.text import CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
+from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 
 
 class Recommender:
     def __init__(self, recipes_path):
-        self.df = pd.read_csv(recipes_path)
-
-        features = ['title', 'rating_avg', 'rating_val', 'total_time', 'category', 'cuisine', 'ingredients']
-        self.df['combine_features'] = self.df[features].apply(lambda x: ' '.join(x.astype(str)), axis=1)
-
-        # Use CountVectorized to convert the text data into a matrix of token counts
-        self.vectorizer = CountVectorizer()
-        self.features_matrix = self.vectorizer.fit_transform(self.df['combine_features'])
-
-        # Compute the cosine similarity matrix
-        self.similarity_matrix = cosine_similarity(self.features_matrix)
+        self.df = pd.read_csv(recipes_path, na_values=['', ' '])
+        self.df = self.df.drop(['image_url', 'recipe_url'], axis=1)
 
     def stats(self):
         return self.df.describe()
@@ -52,44 +44,93 @@ class Recommender:
         plt.legend()
         plt.show()
 
-    def similar_recipes(self, recipe_index, num_similar=10):
-        # Find the indices of the most similar recipes
-        similar_indices = self.similarity_matrix[recipe_index].argsort()[::-1][:num_similar + 1]
-        similar_indices = similar_indices[similar_indices != recipe_index]
+    def recommended_recipes(self, recipe_title):
+        df = self.df.copy()
+        num_recommendations = 10
+        features = ['title', 'rating_avg', 'rating_val', 'total_time', 'category', 'cuisine', 'ingredients']
+
+        df['combine_features'] = df[features].apply(lambda x: ' '.join(x.astype(str)), axis=1)
+
+        # Use CountVectorizer to convert the text data into a matrix of token counts
+        vectorizer = CountVectorizer()
+        features_matrix = vectorizer.fit_transform(df['combine_features'])
+
+        # Compute the cosine similarity matrix
+        similarity_matrix = cosine_similarity(features_matrix)
+
+        recipe_index = df[df['title'] == recipe_title].index[0]
+
+        # Get the indices of the most similar recipes
+        similar_indices = similarity_matrix[recipe_index].argsort()[::-1][1:num_recommendations + 1]
 
         # Get the titles of the most similar recipes
-        similar_recipes = self.df.iloc[similar_indices]['title'].values
-
-        return similar_recipes
-
-    def recommended_recipes(self, recipe_title, num_recommendations=10):
-        recipe_index = self.df[self.df['title'] == recipe_title].index[0]
-        recipe_vector = self.features_matrix[recipe_index]
-        similarity_scores = cosine_similarity(recipe_vector, self.features_matrix)
-        similar_indices = similarity_scores.argsort()[0][::-1][1:num_recommendations + 1]
-        recommended_recipes = self.df.iloc[similar_indices]['title'].values
+        recommended_recipes = df.iloc[similar_indices]['title'].to_string()
         return recommended_recipes
+
+    def vec_space_method(self, recipe):
+        # Preprocess the dataset
+        df = self.df.copy()
+        # One-hot encode categorical features
+        categorical_features = ['category', 'cuisine']
+        one_hot_encoder = OneHotEncoder(handle_unknown='ignore')
+        one_hot_encoded = one_hot_encoder.fit_transform(df[categorical_features]).toarray()
+
+        # Normalize numerical features
+        numerical_features = ['rating_avg', 'rating_val', 'total_time']
+        scaler = MinMaxScaler()
+        normalized = scaler.fit_transform(df[numerical_features])
+
+        # Combine one-hot encoded and normalized features
+        processed_data = np.hstack((one_hot_encoded, normalized))
+
+        # Find the index of the given recipe in the dataset
+        recipe_index = df[df['title'] == recipe].index[0]
+
+        # Compute cosine similarity between the given recipe and all other recipes
+        similarities = cosine_similarity(processed_data[recipe_index].reshape(1, -1), processed_data)
+
+        # Find the indices of the 10 most similar recipes
+        most_similar_indices = np.argsort(similarities[0])[-11:-1][::-1]
+
+        # Return the 10 most similar recipes
+        return df.iloc[most_similar_indices].to_string()
 
 
 class Driver:
     def __init__(self, recipes):
         self.recipes = recipes
+        self.df = Recommender(self.recipes)
 
     def task1(self):
-        task1 = Recommender(self.recipes)
+        task1 = self.df
+        print("=" * 50, "Task 1", "=" * 50)
         print(task1.stats())
         print(task1.top_rated())
-        print(task1.top())
-        print(task1.rating_vs_num_ratings())
-        print(task1.df['combine_features'])
-        print(task1.similar_recipes(0))
-        print(task1.recommended_recipes("Chicken and coconut curry"))
+
+    def task2(self):
+        task2 = self.df
+        print("=" * 50, "Task 2", "=" * 50)
+        print(task2.top())
+        print(task2.rating_vs_num_ratings())
+
+    def task3(self):
+        task3 = self.df
+        print("=" * 50, "Task 3", "=" * 50)
+        print(task3.recommended_recipes("Chicken and coconut curry"))
+
+    def task4(self):
+        task4 = self.df
+        print("=" * 50, "Task 4", "=" * 50)
+        print(task4.vec_space_method("Chicken and coconut curry"))
 
 
 def main():
     recipes_path = "recipes.csv"
     driver = Driver(recipes_path)
     driver.task1()
+    driver.task2()
+    driver.task3()
+    driver.task4()
 
 
 if __name__ == '__main__':
