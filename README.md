@@ -64,8 +64,8 @@ algorithm. [15 marks]
     evaluation into your submitted Python code file. [20 marks]
 
 7. Transform the column rating_av of the dataset into a binary format with
-• 1 representing ’tasty’ for a rating average greater than 4.2,
-• -1 representing ’not tasty’, otherwise.
-Build up a model that can predict whether a recipe will be rated as tasty or not. 
-Investigate how accurate is your predictive model. You may consider only average
-ratings that are significant as found in Part 1.2. [15 marks]
+    - 1 representing ’tasty’ for a rating average greater than 4.2,
+    - -1 representing ’not tasty’, otherwise.
+    Build up a model that can predict whether a recipe will be rated as tasty or not. 
+    Investigate how accurate is your predictive model. You may consider only average
+    ratings that are significant as found in Part 1.2. [15 marks]
