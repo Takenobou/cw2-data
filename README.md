@@ -43,22 +43,26 @@ titles of these recommendations. [10 marks]
 Consider the entire dataset including numerical and categorical features. For example, you
 may extend what you did in Part 1.3 by treating the columns rating_av or total_time as
 numerical values rather than strings.
+
 4. Write a function, vec_space_method, which takes in a recipe and returns the 10 most
 similar recipes to the given one. Do this using a suitable matrix-vector product in the
 Vector Space Method. This has to be different from what is carried out in Part 1.3
 since you have considered the entire dataset. [15 marks]
+
 5. Write a function, knn_similarity, which takes in a recipe and returns the 10 most similar
 recipes to the given one. Do this considering the entire dataset and using the KNN
 algorithm. [15 marks]
+
 6. Consider the following test set composed of four users:
    - User 1 likes ‘Chicken tikka masala’
    - User 2 likes ‘Albanian baked lamb with rice’
    - User 3 likes ‘Baked salmon with chorizo rice’
    - User 4 likes ‘Almond lentil stew’
    
-Using this test set, evaluate both recommender systems you have built up in Part 2.4
-and 2.5 in terms of coverage and personalisation. You can add comments on this
-evaluation into your submitted Python code file. [20 marks]
+    Using this test set, evaluate both recommender systems you have built up in Part 2.4
+    and 2.5 in terms of coverage and personalisation. You can add comments on this
+    evaluation into your submitted Python code file. [20 marks]
+
 7. Transform the column rating_av of the dataset into a binary format with
 • 1 representing ’tasty’ for a rating average greater than 4.2,
 • -1 representing ’not tasty’, otherwise.
