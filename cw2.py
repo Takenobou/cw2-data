@@ -14,31 +14,6 @@ class Recommender:
         self.df = self.df.drop(['image_url', 'recipe_url'], axis=1)
         self._build_knn_model()
 
-    def _build_knn_model(self):
-        # Vectorize recipe titles using TF-IDF
-        self.vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 2))
-        title_matrix = self.vectorizer.fit_transform(self.df['title'])
-
-        # Scale numerical features
-        self.scaler = MinMaxScaler()
-        numerical_features = ['rating_avg', 'rating_val', 'total_time']
-        scaled_numerical_matrix = self.scaler.fit_transform(self.df[numerical_features])
-        scaled_numerical_df = pd.DataFrame(scaled_numerical_matrix, columns=numerical_features)
-
-        # Combine categorical and numerical features
-        self.category_df = pd.get_dummies(self.df['category'])
-        self.cuisine_df = pd.get_dummies(self.df['cuisine'])
-        combined_matrix = pd.concat(
-            [pd.DataFrame(title_matrix.toarray(), columns=self.vectorizer.get_feature_names_out()), scaled_numerical_df,
-             self.category_df, self.cuisine_df], axis=1)
-
-        # Convert all column names to strings
-        combined_matrix.columns = combined_matrix.columns.astype(str)
-
-        # Build KNN model
-        self.knn_model = NearestNeighbors(n_neighbors=11, metric='cosine')
-        self.knn_model.fit(combined_matrix)
-
     def stats(self):
         return self.df.describe()
 
@@ -112,7 +87,7 @@ class Recommender:
         processed_data = np.hstack((one_hot_encoded, normalized))
 
         # Find the index of the given recipe in the dataset
-        recipe_index = df[df['title'] == recipe].index[0]
+        recipe_index = df[df['title'].str.contains(recipe, case=False)].index[0]
 
         # Compute cosine similarity between the given recipe and all other recipes
         similarities = cosine_similarity(processed_data[recipe_index].reshape(1, -1), processed_data)
@@ -121,7 +96,32 @@ class Recommender:
         most_similar_indices = np.argsort(similarities[0])[-11:-1][::-1]
 
         # Return the 10 most similar recipes
-        return df.iloc[most_similar_indices]['title'].to_string()
+        return df.iloc[most_similar_indices]['title']
+
+    def _build_knn_model(self):
+        # Vectorize recipe titles using TF-IDF
+        self.vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 2))
+        title_matrix = self.vectorizer.fit_transform(self.df['title'])
+
+        # Scale numerical features
+        self.scaler = MinMaxScaler()
+        numerical_features = ['rating_avg', 'rating_val', 'total_time']
+        scaled_numerical_matrix = self.scaler.fit_transform(self.df[numerical_features])
+        scaled_numerical_df = pd.DataFrame(scaled_numerical_matrix, columns=numerical_features)
+
+        # Combine categorical and numerical features
+        self.category_df = pd.get_dummies(self.df['category'])
+        self.cuisine_df = pd.get_dummies(self.df['cuisine'])
+        combined_matrix = pd.concat(
+            [pd.DataFrame(title_matrix.toarray(), columns=self.vectorizer.get_feature_names_out()), scaled_numerical_df,
+             self.category_df, self.cuisine_df], axis=1)
+
+        # Convert all column names to strings
+        combined_matrix.columns = combined_matrix.columns.astype(str)
+
+        # Build KNN model
+        self.knn_model = NearestNeighbors(n_neighbors=11, metric='cosine')
+        self.knn_model.fit(combined_matrix)
 
     def knn_similarity(self, title):
         # Transform the title using the fitted vectorizer
@@ -138,16 +138,19 @@ class Recommender:
             scaled_numerical_vector = np.zeros((1, len(numerical_features)))
 
         # Get categorical features
-        input_category_vector = self.category_df[self.df['title'] == title]
-        if input_category_vector.empty:
+        input_category_vector = self.category_df[self.df['title'] == title].to_numpy()
+        if input_category_vector.size == 0:
             input_category_vector = np.zeros((1, self.category_df.shape[1]))
 
-        input_cuisine_vector = self.cuisine_df[self.df['title'] == title]
-        if input_cuisine_vector.empty:
+        input_cuisine_vector = self.cuisine_df[self.df['title'] == title].to_numpy()
+        if input_cuisine_vector.size == 0:
             input_cuisine_vector = np.zeros((1, self.cuisine_df.shape[1]))
 
         # Combine the transformed features
-        input_vector = pd.concat([pd.DataFrame(title_vector.toarray(), columns=self.vectorizer.get_feature_names_out()), pd.DataFrame(scaled_numerical_vector, columns=numerical_features), pd.DataFrame(input_category_vector.values, columns=self.category_df.columns), pd.DataFrame(input_cuisine_vector.values, columns=self.cuisine_df.columns)], axis=1)
+        input_vector = pd.concat([pd.DataFrame(title_vector.toarray(), columns=self.vectorizer.get_feature_names_out()),
+                                  pd.DataFrame(scaled_numerical_vector, columns=numerical_features),
+                                  pd.DataFrame(input_category_vector, columns=self.category_df.columns),
+                                  pd.DataFrame(input_cuisine_vector, columns=self.cuisine_df.columns)], axis=1)
 
         # Convert all column names to strings
         input_vector.columns = input_vector.columns.astype(str)
@@ -156,7 +159,44 @@ class Recommender:
         distances, indices = self.knn_model.kneighbors(input_vector, return_distance=True)
 
         # Return the most similar recipe titles, excluding the first one (the same title)
-        return self.df.iloc[indices[0][1:]]['title'].to_string()
+        return self.df.iloc[indices[0][1:]]['title']
+
+    def calculate_similarity(self, liked_item, recommendations):
+        # Convert liked_item and recommendations to vectors
+        liked_item_vector = liked_item
+        recommendations_vector = recommendations
+
+        # Calculate cosine similarity between liked_item_vector and recommendations_vector
+        similarity = cosine_similarity(liked_item_vector.reshape(1, -1), recommendations_vector.reshape(1, -1))
+
+        return similarity
+
+    def eval_systems(self, users_likes):
+        total_items = self.df.shape[0]
+        knn_recommended_items = set()
+        vsm_recommended_items = set()
+        knn_similarity_scores = []
+        vsm_similarity_scores = []
+
+        for liked_item in users_likes:
+            knn_recommendations = self.knn_similarity(liked_item)
+            knn_recommended_items.update(knn_recommendations)
+            # knn_similarity_scores.append(self.calculate_similarity(liked_item, knn_recommendations))
+
+            vsm_recommendations = self.vec_space_method(liked_item)
+            vsm_recommended_items.update(vsm_recommendations)
+            # vsm_similarity_scores.append(self.calculate_similarity(liked_item, vsm_recommendations))
+
+        knn_unique_recommended_items = len(knn_recommended_items)
+        knn_coverage = knn_unique_recommended_items / total_items
+        # knn_personalization = sum(knn_similarity_scores) / len(knn_similarity_scores)
+
+        vsm_unique_recommended_items = len(vsm_recommended_items)
+        vsm_coverage = vsm_unique_recommended_items / total_items
+        # vsm_personalization = sum(vsm_similarity_scores) / len(vsm_similarity_scores)
+
+        return f"The KNN algorithm produces a coverage of {knn_coverage * 100}%," \
+               f" while the VSM algorithm produces a coverage of {vsm_coverage * 100}%"
 
 
 class Driver:
@@ -189,17 +229,30 @@ class Driver:
     def task5(self):
         task5 = self.df
         print("=" * 50, "Task 5", "=" * 50)
-        print(task5.knn_similarity("Chicken and coconut curry"))
+        print(task5.knn_similarity("Chicken and coconut curry").to_string())
+
+    def task6(self):
+        task6 = self.df
+        print("=" * 50, "Task 6", "=" * 50)
+        users_likes = (
+            "Chicken tikka masala",
+            "Albanian baked lamb with rice",
+            "Baked salmon with chorizo rice",
+            "Almond lentil stew"
+        )
+        print(task6.eval_systems(users_likes))
+
 
 
 def main():
     recipes_path = "recipes.csv"
     driver = Driver(recipes_path)
-    driver.task1()
-    driver.task2()
-    driver.task3()
-    driver.task4()
-    driver.task5()
+    # driver.task1()
+    # driver.task2()
+    # driver.task3()
+    # driver.task4()
+    # driver.task5()
+    driver.task6()
 
 
 if __name__ == '__main__':
