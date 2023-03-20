@@ -55,8 +55,8 @@ class Recommender:
         df['combine_features'] = df[features].apply(lambda x: ' '.join(x.astype(str)), axis=1)
 
         # Use CountVectorizer to convert the text data into a matrix of token counts
-        vectorizer = CountVectorizer()
-        features_matrix = vectorizer.fit_transform(df['combine_features'])
+        vectoriser = CountVectorizer()
+        features_matrix = vectoriser.fit_transform(df['combine_features'])
 
         # Compute the cosine similarity matrix
         similarity_matrix = cosine_similarity(features_matrix)
@@ -100,8 +100,8 @@ class Recommender:
 
     def _build_knn_model(self):
         # Vectorize recipe titles using TF-IDF
-        self.vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 2))
-        title_matrix = self.vectorizer.fit_transform(self.df['title'])
+        self.vectoriser = TfidfVectorizer(stop_words='english', ngram_range=(1, 2))
+        title_matrix = self.vectoriser.fit_transform(self.df['title'])
 
         # Scale numerical features
         self.scaler = MinMaxScaler()
@@ -113,7 +113,7 @@ class Recommender:
         self.category_df = pd.get_dummies(self.df['category'])
         self.cuisine_df = pd.get_dummies(self.df['cuisine'])
         combined_matrix = pd.concat(
-            [pd.DataFrame(title_matrix.toarray(), columns=self.vectorizer.get_feature_names_out()), scaled_numerical_df,
+            [pd.DataFrame(title_matrix.toarray(), columns=self.vectoriser.get_feature_names_out()), scaled_numerical_df,
              self.category_df, self.cuisine_df], axis=1)
 
         # Convert all column names to strings
@@ -125,7 +125,7 @@ class Recommender:
 
     def knn_similarity(self, title):
         # Transform the title using the fitted vectorizer
-        title_vector = self.vectorizer.transform([title])
+        title_vector = self.vectoriser.transform([title])
 
         # Get numerical features
         numerical_features = ['rating_avg', 'rating_val', 'total_time']
@@ -147,7 +147,7 @@ class Recommender:
             input_cuisine_vector = np.zeros((1, self.cuisine_df.shape[1]))
 
         # Combine the transformed features
-        input_vector = pd.concat([pd.DataFrame(title_vector.toarray(), columns=self.vectorizer.get_feature_names_out()),
+        input_vector = pd.concat([pd.DataFrame(title_vector.toarray(), columns=self.vectoriser.get_feature_names_out()),
                                   pd.DataFrame(scaled_numerical_vector, columns=numerical_features),
                                   pd.DataFrame(input_category_vector, columns=self.category_df.columns),
                                   pd.DataFrame(input_cuisine_vector, columns=self.cuisine_df.columns)], axis=1)
@@ -161,42 +161,47 @@ class Recommender:
         # Return the most similar recipe titles, excluding the first one (the same title)
         return self.df.iloc[indices[0][1:]]['title']
 
-    def calculate_similarity(self, liked_item, recommendations):
-        # Convert liked_item and recommendations to vectors
-        liked_item_vector = liked_item
-        recommendations_vector = recommendations
-
-        # Calculate cosine similarity between liked_item_vector and recommendations_vector
-        similarity = cosine_similarity(liked_item_vector.reshape(1, -1), recommendations_vector.reshape(1, -1))
-
-        return similarity
-
-    def eval_systems(self, users_likes):
+    def calculate_metrics(self, recommendations):
+        all_recommendations = set()
         total_items = self.df.shape[0]
-        knn_recommended_items = set()
-        vsm_recommended_items = set()
-        knn_similarity_scores = []
-        vsm_similarity_scores = []
+        unique_recommendations = 0
+        cosine_similarities = []
 
-        for liked_item in users_likes:
-            knn_recommendations = self.knn_similarity(liked_item)
-            knn_recommended_items.update(knn_recommendations)
-            # knn_similarity_scores.append(self.calculate_similarity(liked_item, knn_recommendations))
+        for user_recommendations in recommendations.values():
+            all_recommendations.update(user_recommendations)
+            unique_recommendations += len(set(user_recommendations))
 
-            vsm_recommendations = self.vec_space_method(liked_item)
-            vsm_recommended_items.update(vsm_recommendations)
-            # vsm_similarity_scores.append(self.calculate_similarity(liked_item, vsm_recommendations))
+        coverage = len(all_recommendations) / total_items
 
-        knn_unique_recommended_items = len(knn_recommended_items)
-        knn_coverage = knn_unique_recommended_items / total_items
-        # knn_personalization = sum(knn_similarity_scores) / len(knn_similarity_scores)
+        recommendation_vectors = []
+        for recs in recommendations.values():
+            rec_vector = [1 if r in recs else 0 for r in all_recommendations]
+            recommendation_vectors.append(rec_vector)
 
-        vsm_unique_recommended_items = len(vsm_recommended_items)
-        vsm_coverage = vsm_unique_recommended_items / total_items
-        # vsm_personalization = sum(vsm_similarity_scores) / len(vsm_similarity_scores)
+        cosine_similarities_matrix = cosine_similarity(recommendation_vectors)
 
-        return f"The KNN algorithm produces a coverage of {knn_coverage * 100}%," \
-               f" while the VSM algorithm produces a coverage of {vsm_coverage * 100}%"
+        for i in range(cosine_similarities_matrix.shape[0]):
+            for j in range(i + 1, cosine_similarities_matrix.shape[1]):
+                cosine_similarities.append(cosine_similarities_matrix[i, j])
+
+        personalisation = 1 - np.mean(cosine_similarities)
+
+        return coverage, personalisation
+
+    def evaluate_recommenders(self, test_set):
+        knn_recommendations = {}
+        vec_space_recommendations = {}
+
+        for user, liked_recipe in test_set.items():
+            knn_recommendations[user] = self.knn_similarity(liked_recipe).tolist()
+            vec_space_recommendations[user] = self.vec_space_method(liked_recipe).tolist()
+
+        knn_coverage, knn_personalisation = self.calculate_metrics(knn_recommendations)
+        vec_space_coverage, vec_space_personalisation = self.calculate_metrics(vec_space_recommendations)
+
+        result = f"KNN Recommender: Coverage = {knn_coverage:.3f}, Personalisation = {knn_personalisation:.2f}\n"
+        result += f"Vector Space Recommender: Coverage = {vec_space_coverage:.3f}, Personalisation = {vec_space_personalisation:.2f}"
+        return result
 
 
 class Driver:
@@ -234,24 +239,23 @@ class Driver:
     def task6(self):
         task6 = self.df
         print("=" * 50, "Task 6", "=" * 50)
-        users_likes = (
-            "Chicken tikka masala",
-            "Albanian baked lamb with rice",
-            "Baked salmon with chorizo rice",
-            "Almond lentil stew"
-        )
-        print(task6.eval_systems(users_likes))
-
+        test_set = {
+            'User 1': 'Chicken tikka masala',
+            'User 2': 'Albanian baked lamb with rice',
+            'User 3': 'Baked salmon with chorizo rice',
+            'User 4': 'Almond lentil stew'
+        }
+        print(task6.evaluate_recommenders(test_set))
 
 
 def main():
     recipes_path = "recipes.csv"
     driver = Driver(recipes_path)
-    # driver.task1()
-    # driver.task2()
-    # driver.task3()
-    # driver.task4()
-    # driver.task5()
+    driver.task1()
+    driver.task2()
+    driver.task3()
+    driver.task4()
+    driver.task5()
     driver.task6()
 
 
