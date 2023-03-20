@@ -6,6 +6,7 @@
 - [x] Task 4 
 - [ ] Task 5
 - [ ] Task 6
+- [ ] Task 7
 
 ## Part I (Guided) – Building up a recommender engine
 Your first task is to prepare the data and carry out data pre-processing and visualisation in
