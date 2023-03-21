@@ -127,22 +127,22 @@ class Recommender:
         # Transform the title using the fitted vectorizer
         title_vector = self.vectoriser.transform([title])
 
-        # Get numerical features
-        numerical_features = ['rating_avg', 'rating_val', 'total_time']
-        input_numerical_vector = self.df[self.df['title'] == title][numerical_features]
+        # Get numerical and categorical features in one pass
+        input_row = self.df.query("title == @title")
 
         # Scale numerical features
-        if not input_numerical_vector.empty:
-            scaled_numerical_vector = self.scaler.transform(input_numerical_vector)
+        numerical_features = ['rating_avg', 'rating_val', 'total_time']
+        if not input_row.empty:
+            scaled_numerical_vector = self.scaler.transform(input_row[numerical_features])
         else:
             scaled_numerical_vector = np.zeros((1, len(numerical_features)))
 
         # Get categorical features
-        input_category_vector = self.category_df[self.df['title'] == title].to_numpy()
+        input_category_vector = self.category_df.loc[input_row.index].to_numpy()
         if input_category_vector.size == 0:
             input_category_vector = np.zeros((1, self.category_df.shape[1]))
 
-        input_cuisine_vector = self.cuisine_df[self.df['title'] == title].to_numpy()
+        input_cuisine_vector = self.cuisine_df.loc[input_row.index].to_numpy()
         if input_cuisine_vector.size == 0:
             input_cuisine_vector = np.zeros((1, self.cuisine_df.shape[1]))
 
@@ -191,6 +191,7 @@ class Recommender:
     def evaluate_recommenders(self, test_set):
         knn_recommendations = {}
         vec_space_recommendations = {}
+        user = 0
 
         for user, liked_recipe in test_set.items():
             knn_recommendations[user] = self.knn_similarity(liked_recipe).tolist()
@@ -199,8 +200,11 @@ class Recommender:
         knn_coverage, knn_personalisation = self.calculate_metrics(knn_recommendations)
         vec_space_coverage, vec_space_personalisation = self.calculate_metrics(vec_space_recommendations)
 
-        result = f"KNN Recommender: Coverage = {knn_coverage:.3f}, Personalisation = {knn_personalisation:.2f}\n"
-        result += f"Vector Space Recommender: Coverage = {vec_space_coverage:.3f}, Personalisation = {vec_space_personalisation:.2f}"
+        result = f"Based on a test set of {len(test_set)} users:\n"
+        result += f"KNN Recommender: Coverage = {knn_coverage:.3f}," \
+                  f" Personalisation = {knn_personalisation:.2f}\n"
+        result += f"Vector Space Recommender: Coverage = {vec_space_coverage:.3f}, " \
+                  f"Personalisation = {vec_space_personalisation:.2f}"
         return result
 
 
@@ -246,16 +250,21 @@ class Driver:
             'User 4': 'Almond lentil stew'
         }
         print(task6.evaluate_recommenders(test_set))
+        # Based on the evaluated metrics, the KNN Recommender outperforms the Vector Space Recommender
+        # in terms of both coverage and personalization. The KNN Recommender offers a wider range of
+        # recommendations and better tailors suggestions to individual users. However, these conclusions
+        # are drawn from a small test set of 4 users, and the performance may vary with larger, more
+        # diverse test sets.
 
 
 def main():
     recipes_path = "recipes.csv"
     driver = Driver(recipes_path)
-    driver.task1()
-    driver.task2()
-    driver.task3()
-    driver.task4()
-    driver.task5()
+    # driver.task1()
+    # driver.task2()
+    # driver.task3()
+    # driver.task4()
+    # driver.task5()
     driver.task6()
 
 

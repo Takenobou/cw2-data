@@ -5,7 +5,7 @@
 - [x] Task 3
 - [x] Task 4 
 - [x] Task 5
-- [ ] Task 6
+- [x] Task 6
 - [ ] Task 7
 
 ## Part I (Guided) – Building up a recommender engine
