@@ -1,8 +1,11 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
+from sklearn.model_selection import train_test_split
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 
@@ -15,6 +18,7 @@ class Recommender:
         self.df = self.df.drop(self.df.columns[0], axis=1)
         self._build_knn_model()
 
+    # Part 1 Task 1
     def stats(self):
         return self.df.describe()
 
@@ -23,6 +27,7 @@ class Recommender:
         top10 = self.df.nlargest(10, 'rating_avg')
         return top10[['title', 'rating_avg']]
 
+    # Part 1 Task 2
     def rating_vs_num_ratings(self):
         plt.scatter(self.df['rating_val'], self.df['rating_avg'])
         plt.xlabel('Number of Ratings')
@@ -48,6 +53,7 @@ class Recommender:
 
         return f"Graphs have been generated"
 
+    # Part 1 Task 3
     def recommended_recipes(self, recipe_title):
         df = self.df.copy()
         num_recommendations = 10
@@ -71,7 +77,8 @@ class Recommender:
         recommended_recipes = df.iloc[similar_indices]['title'].to_string()
         return recommended_recipes
 
-    def vec_space_method(self, recipe):
+    # Part 2 Task 1
+    def vec_space_method(self, recipe_title):
         # Preprocess the dataset
         df = self.df.copy()
         # One-hot encode categorical features
@@ -99,6 +106,7 @@ class Recommender:
         # Return the 10 most similar recipes
         return df.iloc[most_similar_indices]['title']
 
+    # Part 2 Task 2
     def _build_knn_model(self):
         # Vectorize recipe titles using TF-IDF
         self.vectoriser = TfidfVectorizer(stop_words='english', ngram_range=(1, 2))
@@ -124,7 +132,8 @@ class Recommender:
         self.knn_model = NearestNeighbors(n_neighbors=11, metric='cosine')
         self.knn_model.fit(combined_matrix)
 
-    def knn_similarity(self, title):
+    # Part 2 Task 2
+    def knn_similarity(self, recipe_title):
         # Transform the title using the fitted vectorizer
         title_vector = self.vectoriser.transform([recipe_title])
 
@@ -162,6 +171,7 @@ class Recommender:
         # Return the most similar recipe titles, excluding the first one (the same title)
         return self.df.iloc[indices[0][1:]]['title']
 
+    # Part 2 Task 3
     def calculate_metrics(self, recommendations):
         all_recommendations = set()
         total_items = self.df.shape[0]
@@ -189,6 +199,7 @@ class Recommender:
 
         return coverage, personalisation
 
+    # Part 2 Task 3
     def evaluate_recommenders(self, test_set):
         knn_recommendations = {}
         vec_space_recommendations = {}
@@ -264,7 +275,7 @@ class Driver:
     def task3(self):
         task3 = self.df
         print("=" * 50, "Task 3", "=" * 50)
-        print(task3.recommended_recipes("Chicken and coconut curry"))
+        print(task3.recommended_recipes("English muffins"))
 
     def task4(self):
         task4 = self.df
