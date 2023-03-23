@@ -12,14 +12,13 @@ class Recommender:
         self.df = pd.read_csv(recipes_path, na_values=['', ' '])
         self.df.fillna({'category': 'unknown', 'cuisine': 'unknown'}, inplace=True)
         self.df = self.df.drop(['image_url', 'recipe_url'], axis=1)
+        self.df = self.df.drop(self.df.columns[0], axis=1)
         self._build_knn_model()
 
     def stats(self):
         return self.df.describe()
 
-    def top_rated(self):
-        return self.df.sort_values(by='rating_avg', ascending=False).head(10)
-
+    # Part 1 Task 1
     def top(self):
         top10 = self.df.nlargest(10, 'rating_avg')
         return top10[['title', 'rating_avg']]
@@ -46,6 +45,8 @@ class Recommender:
         plt.title('Relationship between Average Rating and Number of Ratings with Threshold')
         plt.legend()
         plt.show()
+
+        return f"Graphs have been generated"
 
     def recommended_recipes(self, recipe_title):
         df = self.df.copy()
@@ -87,7 +88,7 @@ class Recommender:
         processed_data = np.hstack((one_hot_encoded, normalized))
 
         # Find the index of the given recipe in the dataset
-        recipe_index = df[df['title'].str.contains(recipe, case=False)].index[0]
+        recipe_index = df[df['title'].str.contains(recipe_title, case=False)].index[0]
 
         # Compute cosine similarity between the given recipe and all other recipes
         similarities = cosine_similarity(processed_data[recipe_index].reshape(1, -1), processed_data)
@@ -125,7 +126,7 @@ class Recommender:
 
     def knn_similarity(self, title):
         # Transform the title using the fitted vectorizer
-        title_vector = self.vectoriser.transform([title])
+        title_vector = self.vectoriser.transform([recipe_title])
 
         # Get numerical and categorical features in one pass
         input_row = self.df.query("title == @title")
@@ -191,7 +192,6 @@ class Recommender:
     def evaluate_recommenders(self, test_set):
         knn_recommendations = {}
         vec_space_recommendations = {}
-        user = 0
 
         for user, liked_recipe in test_set.items():
             knn_recommendations[user] = self.knn_similarity(liked_recipe).tolist()
@@ -207,6 +207,43 @@ class Recommender:
                   f"Personalisation = {vec_space_personalisation:.2f}"
         return result
 
+    def tasty_check(self, recipe_title):
+        # Transform the rating_avg column into binary format
+        self.df['tasty'] = np.where(self.df['rating_avg'] > 4.2, 1, -1)
+
+        # Consider only significant average ratings
+        significant_ratings = self.df[self.df['rating_val'] >= 100]
+
+        # Prepare the data for training
+        x = significant_ratings.drop(['tasty', 'title'], axis=1)
+        y = significant_ratings['tasty']
+
+        # One-hot encode the categorical variables
+        x = pd.get_dummies(x)
+
+        # Split the dataset into training and testing sets
+        x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
+
+        # Build the logistic regression model
+        model = LogisticRegression(max_iter=1000)
+        model.fit(x_train, y_train)
+
+        # Investigate the accuracy of the model
+        y_pred = model.predict(x_test)
+        accuracy = accuracy_score(y_test, y_pred)
+
+        # Check if the input dish is tasty or not
+        input_recipe = self.df[self.df['title'] == recipe_title]
+        if not input_recipe.empty:
+            input_recipe_encoded = pd.get_dummies(input_recipe.drop(['tasty', 'title'], axis=1))
+            input_recipe_encoded = input_recipe_encoded.reindex(columns=x.columns, fill_value=0)
+            tasty_pred = model.predict(input_recipe_encoded)
+            tasty = "tasty" if tasty_pred[0] == 1 else "not tasty"
+        else:
+            tasty = "unknown as it has not been rated enough"
+
+        return f"The input dish '{recipe_title}' is {tasty}. The model's accuracy is {accuracy:.2f}."
+
 
 class Driver:
     def __init__(self, recipes):
@@ -217,12 +254,11 @@ class Driver:
         task1 = self.df
         print("=" * 50, "Task 1", "=" * 50)
         print(task1.stats())
-        print(task1.top_rated())
+        print(task1.top())
 
     def task2(self):
         task2 = self.df
         print("=" * 50, "Task 2", "=" * 50)
-        print(task2.top())
         print(task2.rating_vs_num_ratings())
 
     def task3(self):
@@ -249,23 +285,29 @@ class Driver:
             'User 3': 'Baked salmon with chorizo rice',
             'User 4': 'Almond lentil stew'
         }
-        print(task6.evaluate_recommenders(test_set))
         # Based on the evaluated metrics, the KNN Recommender outperforms the Vector Space Recommender
         # in terms of both coverage and personalization. The KNN Recommender offers a wider range of
         # recommendations and better tailors suggestions to individual users. However, these conclusions
         # are drawn from a small test set of 4 users, and the performance may vary with larger, more
         # diverse test sets.
+        print(task6.evaluate_recommenders(test_set))
+
+    def task7(self):
+        task7 = self.df
+        print("=" * 50, "Task 7", "=" * 50)
+        print(task7.tasty_check("Chicken tikka and naan bread"))
 
 
 def main():
     recipes_path = "recipes.csv"
     driver = Driver(recipes_path)
-    # driver.task1()
-    # driver.task2()
-    # driver.task3()
-    # driver.task4()
-    # driver.task5()
+    driver.task1()
+    driver.task2()
+    driver.task3()
+    driver.task4()
+    driver.task5()
     driver.task6()
+    driver.task7()
 
 
 if __name__ == '__main__':

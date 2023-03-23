@@ -6,7 +6,7 @@
 - [x] Task 4 
 - [x] Task 5
 - [x] Task 6
-- [ ] Task 7
+- [x] Task 7
 
 ## Part I (Guided) – Building up a recommender engine
 Your first task is to prepare the data and carry out data pre-processing and visualisation in
@@ -64,7 +64,7 @@ algorithm. [15 marks]
     and 2.5 in terms of coverage and personalisation. You can add comments on this
     evaluation into your submitted Python code file. [20 marks]
 
-7. Transform the column rating_av of the dataset into a binary format with
+7. Transform the column rating_avg of the dataset into a binary format with
     - 1 representing ’tasty’ for a rating average greater than 4.2,
     - -1 representing ’not tasty’, otherwise.
     Build up a model that can predict whether a recipe will be rated as tasty or not. 
