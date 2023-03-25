@@ -8,6 +8,7 @@ import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
+import os
 
 
 class Recommender:
@@ -22,7 +23,13 @@ class Recommender:
                     be represented as NaN.
         """
 
-        # Load the dataset into a pandas DataFrame
+        if not os.path.isfile(recipes_path):
+            raise ValueError("Invalid path. The provided path does not exist.")
+
+        if not recipes_path.endswith('.csv'):
+            raise ValueError("Invalid file format. The dataset should be in CSV format.")
+
+            # Load the dataset into a pandas DataFrame
         self.df = pd.read_csv(recipes_path, na_values=['', ' '])
 
         # Fill any missing values in the 'category' and 'cuisine' columns with 'unknown'
@@ -54,10 +61,15 @@ class Recommender:
             :return pd.DataFrame: A pandas DataFrame containing the top 10 recipes with the highest average rating,
                 including the 'title' and 'rating_avg' columns.
         """
-        top10 = self.df.nlargest(10, 'rating_avg')
-        top10 = top10[['title', 'rating_avg']].sort_values('rating_avg', ascending=False).reset_index(drop=True)
-        top10.columns = ['Recipe Title', 'Average Rating']
-        return top10
+        try:
+            top10 = self.df.nlargest(10, 'rating_avg')
+            top10 = top10[['title', 'rating_avg']].sort_values('rating_avg', ascending=False).reset_index(drop=True)
+            top10.columns = ['Recipe Title', 'Average Rating']
+            return top10
+        except TypeError:
+            print("Error: The 'rating_avg' column must contain numerical values.")
+        except KeyError:
+            print("Error: The 'title' and 'rating_avg' columns are required.")
 
     # Part 1 Task 2
     def rating_vs_num_ratings(self):
@@ -67,34 +79,38 @@ class Recommender:
 
             :return str: A message indicating that the graphs have been generated.
         """
+        try:
+            # Generate a scatter plot of average rating vs. number of ratings for all recipes
+            plt.scatter(self.df['rating_val'], self.df['rating_avg'])
+            plt.xlabel('Number of Ratings')
+            plt.ylabel('Average Rating')
+            plt.title('Relationship between Average Rating and Number of Ratings')
+            plt.show()
 
-        # Generate a scatter plot of average rating vs. number of ratings for all recipes
-        plt.scatter(self.df['rating_val'], self.df['rating_avg'])
-        plt.xlabel('Number of Ratings')
-        plt.ylabel('Average Rating')
-        plt.title('Relationship between Average Rating and Number of Ratings')
-        plt.show()
+            # Define a threshold for the number of ratings, this chooses the top 25% of recipes with the most ratings
+            threshold = self.df['rating_val'].quantile(0.75)
 
-        # Define a threshold for the number of ratings, this chooses the top 25% of recipes with the most ratings
-        threshold = self.df['rating_val'].quantile(0.75)
+            # Filter the recipes based on the number of ratings threshold
+            significant_ratings = self.df[self.df['rating_val'] >= threshold]
+            not_significant_ratings = self.df[self.df['rating_val'] < threshold]
 
-        # Filter the recipes based on the number of ratings threshold
-        significant_ratings = self.df[self.df['rating_val'] >= threshold]
-        not_significant_ratings = self.df[self.df['rating_val'] < threshold]
+            # Generate a scatter plot of average rating vs. number of ratings
+            # for recipes with and without significant ratings
+            plt.scatter(significant_ratings['rating_val'], significant_ratings['rating_avg'], label='Significant Ratings')
+            plt.scatter(not_significant_ratings['rating_val'], not_significant_ratings['rating_avg'],
+                        label='Not Significant Ratings')
+            plt.xlabel('Number of Ratings')
+            plt.ylabel('Average Rating')
+            plt.title('Relationship between Average Rating and Number of Ratings with Threshold')
+            plt.legend()
+            plt.show()
 
-        # Generate a scatter plot of average rating vs. number of ratings
-        # for recipes with and without significant ratings
-        plt.scatter(significant_ratings['rating_val'], significant_ratings['rating_avg'], label='Significant Ratings')
-        plt.scatter(not_significant_ratings['rating_val'], not_significant_ratings['rating_avg'],
-                    label='Not Significant Ratings')
-        plt.xlabel('Number of Ratings')
-        plt.ylabel('Average Rating')
-        plt.title('Relationship between Average Rating and Number of Ratings with Threshold')
-        plt.legend()
-        plt.show()
-
-        # Return a message indicating that the graphs have been generated
-        return f"Scatter plots of average rating vs. number of ratings have been generated."
+            # Return a message indicating that the graphs have been generated
+            return f"Scatter plots of average rating vs. number of ratings have been generated."
+        except KeyError as e:
+            print(f"Error: {e} column is missing from the dataframe.")
+        except ValueError as e:
+            print(f"Error: {e}")
 
     # Part 1 Task 3
     def recommended_recipes(self, recipe_title):
@@ -106,33 +122,36 @@ class Recommender:
             :return pd.Series: A pandas Series containing the titles of the 10 most similar recipes to the input recipe,
                     in descending order of similarity.
         """
-        # Make a copy of the dataset
-        df = self.df.copy()
+        try:
+            # Make a copy of the dataset
+            df = self.df.copy()
 
-        # Define the number of recommended recipes to return
-        num_recommendations = 10
+            # Define the number of recommended recipes to return
+            num_recommendations = 10
 
-        # Define the features to use for similarity calculation
-        features = ['title', 'rating_avg', 'rating_val', 'total_time', 'category', 'cuisine', 'ingredients']
+            # Define the features to use for similarity calculation
+            features = ['title', 'rating_avg', 'rating_val', 'total_time', 'category', 'cuisine', 'ingredients']
 
-        # Combine the selected features into a single text feature
-        df['combine_features'] = df[features].apply(lambda x: ' '.join(x.astype(str)), axis=1)
+            # Combine the selected features into a single text feature
+            df['combine_features'] = df[features].apply(lambda x: ' '.join(x.astype(str)), axis=1)
 
-        # Use CountVectorizer to convert the text data into a matrix of token counts
-        vectoriser = CountVectorizer()
-        features_matrix = vectoriser.fit_transform(df['combine_features'])
+            # Use CountVectorizer to convert the text data into a matrix of token counts
+            vectoriser = CountVectorizer()
+            features_matrix = vectoriser.fit_transform(df['combine_features'])
 
-        # Compute the cosine similarity matrix
-        similarity_matrix = cosine_similarity(features_matrix)
+            # Compute the cosine similarity matrix
+            similarity_matrix = cosine_similarity(features_matrix)
 
-        # Find the index of the recipe with the given title
-        recipe_index = df[df['title'] == recipe_title].index[0]
+            # Find the index of the recipe with the given title
+            recipe_index = df[df['title'] == recipe_title].index[0]
 
-        # Get the indices of the most similar recipes
-        similar_indices = similarity_matrix[recipe_index].argsort()[::-1][1:num_recommendations + 1]
+            # Get the indices of the most similar recipes
+            similar_indices = similarity_matrix[recipe_index].argsort()[::-1][1:num_recommendations + 1]
 
-        # Return the recommended recipe titles
-        return df.iloc[similar_indices]['title']
+            # Return the recommended recipe titles
+            return df.iloc[similar_indices]['title']
+        except Exception as e:
+            print(f"Error: {e}")
 
     # Part 2 Task 1
     def vec_space_method(self, recipe_title):
@@ -144,34 +163,36 @@ class Recommender:
             :return pd.Series: A pandas Series containing the titles of the 10 most similar recipes to the input recipe,
                 in descending order of similarity.
         """
+        try:
+            # Make a copy of the dataset
+            df = self.df.copy()
 
-        # Make a copy of the dataset
-        df = self.df.copy()
+            # One-hot encode categorical features
+            categorical_features = ['category', 'cuisine', 'ingredients']
+            one_hot_encoder = OneHotEncoder(handle_unknown='ignore')
+            one_hot_encoded = one_hot_encoder.fit_transform(df[categorical_features]).toarray()
 
-        # One-hot encode categorical features
-        categorical_features = ['category', 'cuisine', 'ingredients']
-        one_hot_encoder = OneHotEncoder(handle_unknown='ignore')
-        one_hot_encoded = one_hot_encoder.fit_transform(df[categorical_features]).toarray()
+            # Normalize numerical features
+            numerical_features = ['rating_avg', 'rating_val', 'total_time']
+            scaler = MinMaxScaler()
+            normalized = scaler.fit_transform(df[numerical_features])
 
-        # Normalize numerical features
-        numerical_features = ['rating_avg', 'rating_val', 'total_time']
-        scaler = MinMaxScaler()
-        normalized = scaler.fit_transform(df[numerical_features])
+            # Combine one-hot encoded and normalized features
+            processed_data = np.hstack((one_hot_encoded, normalized))
 
-        # Combine one-hot encoded and normalized features
-        processed_data = np.hstack((one_hot_encoded, normalized))
+            # Find the index of the given recipe in the dataset
+            recipe_index = df[df['title'].str.contains(recipe_title, case=False)].index[0]
 
-        # Find the index of the given recipe in the dataset
-        recipe_index = df[df['title'].str.contains(recipe_title, case=False)].index[0]
+            # Compute cosine similarity between the given recipe and all other recipes
+            similarities = cosine_similarity(processed_data[recipe_index].reshape(1, -1), processed_data)
 
-        # Compute cosine similarity between the given recipe and all other recipes
-        similarities = cosine_similarity(processed_data[recipe_index].reshape(1, -1), processed_data)
+            # Find the indices of the 10 most similar recipes
+            most_similar_indices = np.argsort(similarities[0])[-11:-1][::-1]
 
-        # Find the indices of the 10 most similar recipes
-        most_similar_indices = np.argsort(similarities[0])[-11:-1][::-1]
-
-        # Return the 10 most similar recipes
-        return df.iloc[most_similar_indices]['title']
+            # Return the 10 most similar recipes
+            return df.iloc[most_similar_indices]['title']
+        except IndexError:
+            print("Recipe not found in dataset. Please enter a valid recipe title.")
 
     # Part 2 Task 2
     def _build_knn_model(self):
@@ -185,32 +206,34 @@ class Recommender:
 
             The KNN model is trained on the combined feature matrix, using cosine similarity as the distance metric.
         """
+        try:
+            # Vectorize recipe titles using TF-IDF
+            self.vectoriser = TfidfVectorizer(stop_words='english', ngram_range=(1, 2))
+            title_matrix = self.vectoriser.fit_transform(self.df['title'])
 
-        # Vectorize recipe titles using TF-IDF
-        self.vectoriser = TfidfVectorizer(stop_words='english', ngram_range=(1, 2))
-        title_matrix = self.vectoriser.fit_transform(self.df['title'])
+            # Scale numerical features
+            self.scaler = MinMaxScaler()
+            numerical_features = ['rating_avg', 'rating_val', 'total_time']
+            scaled_numerical_matrix = self.scaler.fit_transform(self.df[numerical_features])
+            scaled_numerical_df = pd.DataFrame(scaled_numerical_matrix, columns=numerical_features)
 
-        # Scale numerical features
-        self.scaler = MinMaxScaler()
-        numerical_features = ['rating_avg', 'rating_val', 'total_time']
-        scaled_numerical_matrix = self.scaler.fit_transform(self.df[numerical_features])
-        scaled_numerical_df = pd.DataFrame(scaled_numerical_matrix, columns=numerical_features)
+            # One-hot encode categorical features
+            self.category_df = pd.get_dummies(self.df['category'])
+            self.cuisine_df = pd.get_dummies(self.df['cuisine'])
 
-        # One-hot encode categorical features
-        self.category_df = pd.get_dummies(self.df['category'])
-        self.cuisine_df = pd.get_dummies(self.df['cuisine'])
+            # Combine all features into a single matrix
+            combined_matrix = pd.concat(
+                [pd.DataFrame(title_matrix.toarray(), columns=self.vectoriser.get_feature_names_out()), scaled_numerical_df,
+                 self.category_df, self.cuisine_df], axis=1)
 
-        # Combine all features into a single matrix
-        combined_matrix = pd.concat(
-            [pd.DataFrame(title_matrix.toarray(), columns=self.vectoriser.get_feature_names_out()), scaled_numerical_df,
-             self.category_df, self.cuisine_df], axis=1)
+            # Convert all column names to strings
+            combined_matrix.columns = combined_matrix.columns.astype(str)
 
-        # Convert all column names to strings
-        combined_matrix.columns = combined_matrix.columns.astype(str)
-
-        # Build KNN model
-        self.knn_model = NearestNeighbors(n_neighbors=11, metric='cosine')
-        self.knn_model.fit(combined_matrix)
+            # Build KNN model
+            self.knn_model = NearestNeighbors(n_neighbors=11, metric='cosine')
+            self.knn_model.fit(combined_matrix)
+        except Exception as e:
+            print(f"An error occurred while building the KNN model: {e}")
 
     # Part 2 Task 2
     def knn_similarity(self, recipe_title):
@@ -223,8 +246,20 @@ class Recommender:
             excluding the input recipe title.
         """
 
+        """
+            Returns a pandas Series containing the titles of the 10 most similar recipes to the input recipe.
+
+            :param str recipe_title: The title of the recipe for which to generate recommendations.
+
+            :return pd.Series: A pandas Series containing the titles of the 10 most similar recipes to the input recipe,
+                excluding the input recipe title.
+            """
+
         # Transform the title using the fitted vectoriser
-        title_vector = self.vectoriser.transform([recipe_title])
+        try:
+            title_vector = self.vectoriser.transform([recipe_title])
+        except AttributeError:
+            raise AttributeError("Please run the '_build_knn_model' method first to build the KNN model.")
 
         # Get numerical and categorical features in one pass
         input_row = self.df.query("title == @recipe_title")
@@ -255,7 +290,10 @@ class Recommender:
         input_vector.columns = input_vector.columns.astype(str)
 
         # Get 10 most similar recipe indices and distances
-        distances, indices = self.knn_model.kneighbors(input_vector, return_distance=True)
+        try:
+            distances, indices = self.knn_model.kneighbors(input_vector, return_distance=True)
+        except AttributeError:
+            raise AttributeError("Please run the '_build_knn_model' method first to build the KNN model.")
 
         # Return the most similar recipe titles, excluding the input recipe title
         return self.df.iloc[indices[0][1:]]['title']
@@ -270,13 +308,20 @@ class Recommender:
         :return Tuple[float, float]: A tuple containing the coverage and personalisation metrics as floats.
         """
 
+        if not isinstance(recommendations, dict):
+            raise TypeError("Recommendations must be a dictionary.")
+
         all_recommendations = set()
         total_items = self.df.shape[0]
         unique_recommendations = 0
         cosine_similarities = []
 
         # Calculate the number of unique recommended items and the total number of recommended items
-        for user_recommendations in recommendations.values():
+        for user_id, user_recommendations in recommendations.items():
+            if not isinstance(user_id, str):
+                raise TypeError("User ID must be an string.")
+            if not isinstance(user_recommendations, list):
+                raise TypeError("Recommended recipes must be a list.")
             all_recommendations.update(user_recommendations)
             unique_recommendations += len(set(user_recommendations))
 
@@ -311,11 +356,19 @@ class Recommender:
         :return str: A string summarizing the evaluation results for the KNN and vector space recommenders.
         """
 
+        if not isinstance(test_set, dict):
+            raise TypeError("test_set must be a dictionary")
+
         knn_recommendations = {}
         vec_space_recommendations = {}
 
         # Generate recommendations for each user in the test set using both recommenders
         for user, liked_recipe in test_set.items():
+            if not isinstance(user, str):
+                raise TypeError("user IDs must be string")
+            if not isinstance(liked_recipe, str):
+                raise TypeError("recipe titles must be strings")
+
             knn_recommendations[user] = self.knn_similarity(liked_recipe).tolist()
             vec_space_recommendations[user] = self.vec_space_method(liked_recipe).tolist()
 
@@ -341,6 +394,14 @@ class Recommender:
             :return str: A string indicating whether the input recipe is tasty or not,
                  and the accuracy of the logistic regression model.
         """
+
+        # Check if the recipe_title is a string
+        if not isinstance(recipe_title, str):
+            raise TypeError("The recipe_title must be a string")
+
+        # Check if the recipe_title exists in the dataset
+        if recipe_title not in self.df['title'].unique():
+            return f"The input dish '{recipe_title}' is not found in the dataset"
 
         # Transform the rating_avg column into binary format
         self.df['tasty'] = np.where(self.df['rating_avg'] > 4.2, 1, -1)
