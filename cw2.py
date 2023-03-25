@@ -15,8 +15,7 @@ class Recommender:
         """
             Initialize the Recommender class with a path to the recipes dataset.
 
-            Args:
-                recipes_path (str): A string representing the path to a CSV file containing recipe data.
+            :param str recipes_path: A string representing the path to a CSV file containing recipe data.
                     The file should contain a header row with column names and the first column should be
                     an index or ID column. If any values in the 'category' or 'cuisine' columns are missing,
                     they will be filled with the string 'unknown'. Any other missing values in the dataset should
@@ -43,8 +42,7 @@ class Recommender:
         """
             Return summary statistics for the recipe dataset.
 
-            Returns:
-                pd.DataFrame: A pandas DataFrame containing summary statistics for the recipe dataset.
+            :return pd.DataFrame: A pandas DataFrame containing summary statistics for the recipe dataset.
         """
         return self.df.describe()
 
@@ -53,12 +51,13 @@ class Recommender:
         """
             Return the top 10 recipes with the highest average rating.
 
-            Returns:
-                pd.DataFrame: A pandas DataFrame containing the top 10 recipes with the highest average rating,
+            :return pd.DataFrame: A pandas DataFrame containing the top 10 recipes with the highest average rating,
                 including the 'title' and 'rating_avg' columns.
         """
         top10 = self.df.nlargest(10, 'rating_avg')
-        return top10[['title', 'rating_avg']]
+        top10 = top10[['title', 'rating_avg']].sort_values('rating_avg', ascending=False).reset_index(drop=True)
+        top10.columns = ['Recipe Title', 'Average Rating']
+        return top10
 
     # Part 1 Task 2
     def rating_vs_num_ratings(self):
@@ -66,8 +65,7 @@ class Recommender:
             Generate scatter plots of average rating vs. number of ratings for all recipes,
             and for recipes with and without significant ratings.
 
-            Returns:
-                str: A message indicating that the graphs have been generated.
+            :return str: A message indicating that the graphs have been generated.
         """
 
         # Generate a scatter plot of average rating vs. number of ratings for all recipes
@@ -77,8 +75,8 @@ class Recommender:
         plt.title('Relationship between Average Rating and Number of Ratings')
         plt.show()
 
-        # Define a threshold for the number of ratings
-        threshold = 100
+        # Define a threshold for the number of ratings, this chooses the top 25% of recipes with the most ratings
+        threshold = self.df['rating_val'].quantile(0.75)
 
         # Filter the recipes based on the number of ratings threshold
         significant_ratings = self.df[self.df['rating_val'] >= threshold]
@@ -96,20 +94,18 @@ class Recommender:
         plt.show()
 
         # Return a message indicating that the graphs have been generated
-        return f"Graphs have been generated"
+        return f"Scatter plots of average rating vs. number of ratings have been generated."
 
     # Part 1 Task 3
     def recommended_recipes(self, recipe_title):
         """
             Generate recommendations for a given recipe title using cosine similarity.
 
-            Args:
-                recipe_title (str): The title of the recipe for which to generate recommendations.
+            :param str recipe_title: The title of the recipe for which to generate recommendations.
 
-            Returns:
-                str: A string containing the titles of the 10 most similar recipes to the input recipe,
-                in descending order of similarity.
-                """
+            :return pd.Series: A pandas Series containing the titles of the 10 most similar recipes to the input recipe,
+                    in descending order of similarity.
+        """
         # Make a copy of the dataset
         df = self.df.copy()
 
@@ -135,22 +131,17 @@ class Recommender:
         # Get the indices of the most similar recipes
         similar_indices = similarity_matrix[recipe_index].argsort()[::-1][1:num_recommendations + 1]
 
-        # Get the titles of the most similar recipes
-        recommended_recipes = df.iloc[similar_indices]['title'].to_string()
-
-        # Return the recommended recipe titles as a string
-        return recommended_recipes
+        # Return the recommended recipe titles
+        return df.iloc[similar_indices]['title']
 
     # Part 2 Task 1
     def vec_space_method(self, recipe_title):
         """
             Generate recommendations for a given recipe title using the vector space method.
 
-            Args:
-                recipe_title (str): The title of the recipe for which to generate recommendations.
+            :param str recipe_title: The title of the recipe for which to generate recommendations.
 
-            Returns:
-                pd.Series: A pandas Series containing the titles of the 10 most similar recipes to the input recipe,
+            :return pd.Series: A pandas Series containing the titles of the 10 most similar recipes to the input recipe,
                 in descending order of similarity.
         """
 
@@ -226,15 +217,13 @@ class Recommender:
         """
         Returns a pandas Series containing the titles of the 10 most similar recipes to the input recipe.
 
-        Args:
-            recipe_title (str): The title of the recipe for which to generate recommendations.
+        :param str recipe_title: The title of the recipe for which to generate recommendations.
 
-        Returns:
-            pd.Series: A pandas Series containing the titles of the 10 most similar recipes to the input recipe,
+        :return pd.Series: A pandas Series containing the titles of the 10 most similar recipes to the input recipe,
             excluding the input recipe title.
         """
 
-        # Transform the title using the fitted vectorizer
+        # Transform the title using the fitted vectoriser
         title_vector = self.vectoriser.transform([recipe_title])
 
         # Get numerical and categorical features in one pass
@@ -276,11 +265,9 @@ class Recommender:
         """
         Calculates the coverage and personalisation metrics for a set of recommendations.
 
-        Args:
-            recommendations (Dict[int, List[str]]): A dictionary mapping user IDs to lists of recommended recipe titles.
+        :param (Dict[int, List[str]] recommendations: A dictionary mapping user IDs to recommended recipe title lists.
 
-        Returns:
-            Tuple[float, float]: A tuple containing the coverage and personalisation metrics as floats.
+        :return Tuple[float, float]: A tuple containing the coverage and personalisation metrics as floats.
         """
 
         all_recommendations = set()
@@ -319,11 +306,9 @@ class Recommender:
         """
         Evaluates the KNN and vector space recommenders on a test set of user-liked recipes.
 
-        Args:
-            test_set (Dict[int, str]): A dictionary mapping user IDs to recipe titles that they liked.
+        :param Dict[int, str] test_set : A dictionary mapping user IDs to recipe titles that they liked.
 
-        Returns:
-            str: A string summarizing the evaluation results for the KNN and vector space recommenders.
+        :return str: A string summarizing the evaluation results for the KNN and vector space recommenders.
         """
 
         knn_recommendations = {}
@@ -351,11 +336,9 @@ class Recommender:
             Checks if a given recipe is "tasty" (i.e., has an average rating above 4.2)
              using a logistic regression model.
 
-            Args:
-                recipe_title (str): The title of the recipe to check.
+            :param str recipe_title: The title of the recipe to check.
 
-            Returns:
-                str: A string indicating whether the input recipe is tasty or not,
+            :return str: A string indicating whether the input recipe is tasty or not,
                  and the accuracy of the logistic regression model.
         """
 
@@ -363,7 +346,7 @@ class Recommender:
         self.df['tasty'] = np.where(self.df['rating_avg'] > 4.2, 1, -1)
 
         # Consider only significant average ratings
-        significant_ratings = self.df[self.df['rating_val'] >= 100]
+        significant_ratings = self.df[self.df['rating_val'] >= self.df['rating_val'].quantile(0.75)]
 
         # Prepare the data for training
         x = significant_ratings.drop(['tasty', 'title'], axis=1)
@@ -376,7 +359,7 @@ class Recommender:
         x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=42)
 
         # Build the logistic regression model
-        model = LogisticRegression(max_iter=1000)
+        model = LogisticRegression(max_iter=5000)
         model.fit(x_train, y_train)
 
         # Investigate the accuracy of the model
@@ -400,7 +383,7 @@ class Driver:
     def __init__(self, recipes_path):
         """
         Constructor for the Driver class.
-        :param recipes_path: The path to the CSV file containing recipe data.
+        :param str recipes_path: The path to the CSV file containing recipe data.
         """
         self.recipes = recipes_path
         self.df = Recommender(self.recipes)
@@ -423,42 +406,44 @@ class Driver:
         print("=" * 50, "Task 2", "=" * 50)
         print(task2.rating_vs_num_ratings())
 
-    def task3(self):
+    def task3(self, recipe_title):
         """
         Print the top 10 recommended recipes based on cosine similarity with the input recipe.
+        :param str recipe_title: The title of the recipe to use as the basis for recommendations.
         """
         task3 = self.df
         print("=" * 50, "Task 3", "=" * 50)
-        print(task3.recommended_recipes("English muffins"))
+        recommended_recipes = '\n'.join(task3.recommended_recipes(recipe_title))
+        print(f"Recommended recipes for {recipe_title}:\n\n{recommended_recipes}")
 
-    def task4(self):
+    def task4(self, recipe_title):
         """
         Print the top 10 recommended recipes based on the vector space model method with the input recipe.
+        :param str recipe_title: The title of the recipe to use as the basis for recommendations.
         """
         task4 = self.df
         print("=" * 50, "Task 4", "=" * 50)
-        print(task4.vec_space_method("Chicken and coconut curry"))
+        # Return the recommended recipe titles as a string
+        recommended_recipes = '\n'.join(task4.vec_space_method(recipe_title).to_list())
+        print(f"Recommended recipes for {recipe_title}:\n\n{recommended_recipes}")
 
-    def task5(self):
+    def task5(self, recipe_title):
         """
         Print the titles of the 10 most similar recipes to the input recipe based on the KNN method.
+        :param str recipe_title: The title of the recipe to use as the basis for similarity comparisons.
         """
         task5 = self.df
         print("=" * 50, "Task 5", "=" * 50)
-        print(task5.knn_similarity("Chicken and coconut curry").to_string())
+        recommended_recipes = '\n'.join(task5.knn_similarity(recipe_title).to_list())
+        print(f"Recommended recipes for {recipe_title}:\n\n{recommended_recipes}")
 
-    def task6(self):
+    def task6(self, test_set):
         """
-        Evaluate the KNN and Vector Space Recommender systems on a test set of 4 users.
+        Evaluate the KNN and Vector Space Recommender systems on a test set.
+        :param dict test_set: A dictionary of test users and their respective recipe ratings.
         """
         task6 = self.df
         print("=" * 50, "Task 6", "=" * 50)
-        test_set = {
-            'User 1': 'Chicken tikka masala',
-            'User 2': 'Albanian baked lamb with rice',
-            'User 3': 'Baked salmon with chorizo rice',
-            'User 4': 'Almond lentil stew'
-        }
         # Based on the evaluated metrics, the KNN Recommender outperforms the Vector Space Recommender
         # in terms of both coverage and personalization. The KNN Recommender offers a wider range of
         # recommendations and better tailors suggestions to individual users. However, these conclusions
@@ -466,25 +451,40 @@ class Driver:
         # diverse test sets.
         print(task6.evaluate_recommenders(test_set))
 
-    def task7(self):
+    def task7(self, recipe_title):
         """
         Check the tastiness of a given recipe.
+        :param str recipe_title: The title of the recipe to check.
         """
         task7 = self.df
         print("=" * 50, "Task 7", "=" * 50)
-        print(task7.tasty_check("Chicken tikka and naan bread"))
+        print(task7.tasty_check(recipe_title))
 
 
 def main():
+    # Test data
     recipes_path = "recipes.csv"
+    # Test recipe
+    test_recipe = "Chicken and coconut curry"
+    # Test set for task 6
+    test_set = {
+        'User 1': 'Chicken tikka masala',
+        'User 2': 'Albanian baked lamb with rice',
+        'User 3': 'Baked salmon with chorizo rice',
+        'User 4': 'Almond lentil stew'
+    }
+
+    # Run the driver
     driver = Driver(recipes_path)
+    # Part 1
     driver.task1()
     driver.task2()
-    driver.task3()
-    driver.task4()
-    driver.task5()
-    driver.task6()
-    driver.task7()
+    driver.task3(test_recipe)
+    # Part 2
+    driver.task4(test_recipe)
+    driver.task5(test_recipe)
+    driver.task6(test_set)
+    driver.task7(test_recipe)
 
 
 if __name__ == '__main__':
