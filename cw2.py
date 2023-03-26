@@ -10,6 +10,9 @@ from sklearn.neighbors import NearestNeighbors
 from sklearn.preprocessing import MinMaxScaler, OneHotEncoder
 import os
 
+# Data Analytics CW2
+# Alexander Martin (aam65) and Klaudiusz Halek (kdh10)
+
 
 class Recommender:
     def __init__(self, recipes_path):
