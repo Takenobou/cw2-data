@@ -14,7 +14,7 @@ import os
 class Recommender:
     def __init__(self, recipes_path):
         """
-            Initialize the Recommender class with a path to the recipes dataset.
+            Initialise the Recommender class with a path to the recipes dataset.
 
             :param str recipes_path: A string representing the path to a CSV file containing recipe data.
                     The file should contain a header row with column names and the first column should be
@@ -96,7 +96,8 @@ class Recommender:
 
             # Generate a scatter plot of average rating vs. number of ratings
             # for recipes with and without significant ratings
-            plt.scatter(significant_ratings['rating_val'], significant_ratings['rating_avg'], label='Significant Ratings')
+            plt.scatter(significant_ratings['rating_val'], significant_ratings['rating_avg'],
+                        label='Significant Ratings')
             plt.scatter(not_significant_ratings['rating_val'], not_significant_ratings['rating_avg'],
                         label='Not Significant Ratings')
             plt.xlabel('Number of Ratings')
@@ -223,8 +224,8 @@ class Recommender:
 
             # Combine all features into a single matrix
             combined_matrix = pd.concat(
-                [pd.DataFrame(title_matrix.toarray(), columns=self.vectoriser.get_feature_names_out()), scaled_numerical_df,
-                 self.category_df, self.cuisine_df], axis=1)
+                [pd.DataFrame(title_matrix.toarray(), columns=self.vectoriser.get_feature_names_out()),
+                 scaled_numerical_df, self.category_df, self.cuisine_df], axis=1)
 
             # Convert all column names to strings
             combined_matrix.columns = combined_matrix.columns.astype(str)
@@ -245,15 +246,6 @@ class Recommender:
         :return pd.Series: A pandas Series containing the titles of the 10 most similar recipes to the input recipe,
             excluding the input recipe title.
         """
-
-        """
-            Returns a pandas Series containing the titles of the 10 most similar recipes to the input recipe.
-
-            :param str recipe_title: The title of the recipe for which to generate recommendations.
-
-            :return pd.Series: A pandas Series containing the titles of the 10 most similar recipes to the input recipe,
-                excluding the input recipe title.
-            """
 
         # Transform the title using the fitted vectoriser
         try:
@@ -303,7 +295,7 @@ class Recommender:
         """
         Calculates the coverage and personalisation metrics for a set of recommendations.
 
-        :param (Dict[int, List[str]] recommendations: A dictionary mapping user IDs to recommended recipe title lists.
+        :param (Dict[str, List[str]] recommendations: A dictionary mapping users to recommended recipe title lists.
 
         :return Tuple[float, float]: A tuple containing the coverage and personalisation metrics as floats.
         """
@@ -317,9 +309,9 @@ class Recommender:
         cosine_similarities = []
 
         # Calculate the number of unique recommended items and the total number of recommended items
-        for user_id, user_recommendations in recommendations.items():
-            if not isinstance(user_id, str):
-                raise TypeError("User ID must be an string.")
+        for user, user_recommendations in recommendations.items():
+            if not isinstance(user, str):
+                raise TypeError("User must be an string.")
             if not isinstance(user_recommendations, list):
                 raise TypeError("Recommended recipes must be a list.")
             all_recommendations.update(user_recommendations)
@@ -351,13 +343,13 @@ class Recommender:
         """
         Evaluates the KNN and vector space recommenders on a test set of user-liked recipes.
 
-        :param Dict[int, str] test_set : A dictionary mapping user IDs to recipe titles that they liked.
+        :param Dict[str, str] test_set : A dictionary mapping users to recipe titles that they liked.
 
         :return str: A string summarizing the evaluation results for the KNN and vector space recommenders.
         """
 
         if not isinstance(test_set, dict):
-            raise TypeError("test_set must be a dictionary")
+            raise TypeError("Test set must be a dictionary.")
 
         knn_recommendations = {}
         vec_space_recommendations = {}
@@ -365,9 +357,9 @@ class Recommender:
         # Generate recommendations for each user in the test set using both recommenders
         for user, liked_recipe in test_set.items():
             if not isinstance(user, str):
-                raise TypeError("user IDs must be string")
+                raise TypeError("User must be string.")
             if not isinstance(liked_recipe, str):
-                raise TypeError("recipe titles must be strings")
+                raise TypeError("Recipe titles must be strings.")
 
             knn_recommendations[user] = self.knn_similarity(liked_recipe).tolist()
             vec_space_recommendations[user] = self.vec_space_method(liked_recipe).tolist()
@@ -397,7 +389,7 @@ class Recommender:
 
         # Check if the recipe_title is a string
         if not isinstance(recipe_title, str):
-            raise TypeError("The recipe_title must be a string")
+            raise TypeError("The recipe title must be a string")
 
         # Check if the recipe_title exists in the dataset
         if recipe_title not in self.df['title'].unique():
@@ -475,7 +467,7 @@ class Driver:
         task3 = self.df
         print("=" * 50, "Task 3", "=" * 50)
         recommended_recipes = '\n'.join(task3.recommended_recipes(recipe_title))
-        print(f"Recommended recipes for {recipe_title}:\n\n{recommended_recipes}")
+        print(f"Recommended recipes for '{recipe_title}' using cosine similarity:\n\n{recommended_recipes}")
 
     def task4(self, recipe_title):
         """
@@ -486,17 +478,17 @@ class Driver:
         print("=" * 50, "Task 4", "=" * 50)
         # Return the recommended recipe titles as a string
         recommended_recipes = '\n'.join(task4.vec_space_method(recipe_title).to_list())
-        print(f"Recommended recipes for {recipe_title}:\n\n{recommended_recipes}")
+        print(f"Recommended recipes for '{recipe_title}' using the Vector Space model:\n\n{recommended_recipes}")
 
     def task5(self, recipe_title):
         """
         Print the titles of the 10 most similar recipes to the input recipe based on the KNN method.
-        :param str recipe_title: The title of the recipe to use as the basis for similarity comparisons.
+        :param str recipe_title: The title of the recipe to use as the basis for recommendations.
         """
         task5 = self.df
         print("=" * 50, "Task 5", "=" * 50)
         recommended_recipes = '\n'.join(task5.knn_similarity(recipe_title).to_list())
-        print(f"Recommended recipes for {recipe_title}:\n\n{recommended_recipes}")
+        print(f"Recommended recipes for '{recipe_title}' using the kNN model:\n\n{recommended_recipes}")
 
     def task6(self, test_set):
         """
